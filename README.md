@@ -2,6 +2,10 @@
 
 A modern, full-featured pharmacy inventory and billing management system built for **Chitra Multi Speciality Clinic**. Designed as a demo-ready hospital software solution with real-world workflows.
 
+### 🌐 [Live Demo → pharmacyinventory-orpin.vercel.app](https://pharmacyinventory-orpin.vercel.app)
+
+> **Login:** `admin` / `admin123`
+
 ---
 
 ## ✨ Features
