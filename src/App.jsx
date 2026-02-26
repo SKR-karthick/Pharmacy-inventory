@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { MedicinesProvider } from './context/MedicinesContext'
 import MainLayout from './layout/MainLayout'
@@ -55,13 +55,13 @@ function AppRoutes() {
 
 function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <AuthProvider>
         <MedicinesProvider>
           <AppRoutes />
         </MedicinesProvider>
       </AuthProvider>
-    </HashRouter>
+    </BrowserRouter>
   )
 }
 
