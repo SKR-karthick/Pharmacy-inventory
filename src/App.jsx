@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { MedicinesProvider } from './context/MedicinesContext'
-import { ThemeProvider } from './context/ThemeContext'
 import MainLayout from './layout/MainLayout'
 import Dashboard from './pages/Dashboard'
 import Medicines from './pages/Medicines'
@@ -57,13 +56,11 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <MedicinesProvider>
-            <AppRoutes />
-          </MedicinesProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <MedicinesProvider>
+          <AppRoutes />
+        </MedicinesProvider>
+      </AuthProvider>
     </BrowserRouter>
   )
 }
