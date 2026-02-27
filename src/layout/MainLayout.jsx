@@ -8,25 +8,18 @@ export default function MainLayout() {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
-      <main className={`flex-1 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <main className={`flex-1 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'ml-[68px]' : 'ml-60'}`}>
         {/* Header */}
         <header className="h-14 bg-white/80 backdrop-blur-sm border-b border-slate-200/60 flex items-center justify-between px-6 sticky top-0 z-10">
-          {/* Animated Hamburger */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-all duration-200 hover:scale-105 group"
+            className="p-2 hover:bg-slate-100 rounded-lg transition-all duration-200"
             title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <div className="w-5 h-4 flex flex-col justify-between">
-              <span className={`block h-0.5 bg-slate-500 rounded-full transition-all duration-300 origin-center group-hover:bg-slate-700 ${!sidebarCollapsed ? 'rotate-45 translate-y-[7px]' : ''
-                }`}></span>
-              <span className={`block h-0.5 bg-slate-500 rounded-full transition-all duration-300 group-hover:bg-slate-700 ${!sidebarCollapsed ? 'opacity-0 scale-x-0' : ''
-                }`}></span>
-              <span className={`block h-0.5 bg-slate-500 rounded-full transition-all duration-300 origin-center group-hover:bg-slate-700 ${!sidebarCollapsed ? '-rotate-45 -translate-y-[7px]' : ''
-                }`}></span>
-            </div>
+            <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
-
           <div className="flex items-center gap-2">
             <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors relative">
               <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

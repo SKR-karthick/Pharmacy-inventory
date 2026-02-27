@@ -1,6 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useState } from 'react'
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -13,22 +12,6 @@ const navItems = [
   { name: 'Settings', path: '/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ]
 
-// Tooltip component for collapsed icons
-function Tooltip({ text, children }) {
-  const [show, setShow] = useState(false)
-  return (
-    <div className="relative" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
-      {children}
-      {show && (
-        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-800 text-white text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50 pointer-events-none animate-scale-in">
-          {text}
-          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-800"></div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function Sidebar({ collapsed = false, onToggle }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -39,122 +22,94 @@ export default function Sidebar({ collapsed = false, onToggle }) {
   }
 
   return (
-    <aside className={`bg-slate-900 min-h-screen flex flex-col fixed left-0 top-0 z-20 transition-all duration-300 ease-in-out ${collapsed ? 'w-20' : 'w-64'}`}>
-
-      {/* Floating Toggle Button */}
-      <button
-        onClick={onToggle}
-        className="absolute -right-3.5 top-[72px] w-7 h-7 bg-slate-800 border-2 border-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-emerald-500 hover:border-emerald-500 hover:scale-110 shadow-lg transition-all duration-300 z-30"
-      >
-        <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
+    <aside className={`bg-white min-h-screen flex flex-col fixed left-0 top-0 z-20 border-r border-slate-200/80 transition-all duration-300 ease-in-out ${collapsed ? 'w-[68px]' : 'w-60'}`}>
 
       {/* Logo */}
-      <div className={`h-16 flex items-center ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
-        <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-          <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/20">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className={`h-16 flex items-center ${collapsed ? 'justify-center px-3' : 'px-5'}`}>
+        <div className={`flex items-center gap-2.5 ${collapsed ? 'justify-center' : ''}`}>
+          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
           </div>
-          <div className={`overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-            <span className="text-white font-bold text-lg tracking-tight whitespace-nowrap">Chitra Clinic</span>
-            <p className="text-emerald-400/60 text-[10px] font-medium whitespace-nowrap">Pharmacy Management</p>
-          </div>
+          {!collapsed && (
+            <span className="text-emerald-600 font-bold text-lg tracking-tight whitespace-nowrap">Chitra Clinic</span>
+          )}
         </div>
       </div>
 
-      {/* Divider */}
-      <div className={`mx-3 border-t border-slate-800/80 ${collapsed ? 'mx-2' : 'mx-4'}`}></div>
-
       {/* Navigation */}
-      <nav className={`flex-1 py-4 space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
-        {navItems.map((item) => {
-          const linkContent = (
-            <NavLink
-              key={item.name}
-              to={item.path}
-              end={item.path === '/'}
-              className={({ isActive }) =>
-                `group flex items-center rounded-xl text-sm font-medium transition-all duration-200 ${collapsed ? 'justify-center w-full px-0 py-3' : 'px-3.5 py-2.5 gap-3'
-                } ${isActive
-                  ? 'bg-emerald-500/15 text-emerald-400 shadow-sm shadow-emerald-500/5'
-                  : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <div className={`flex-shrink-0 ${isActive && collapsed ? 'relative' : ''}`}>
-                    <svg className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-emerald-400' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
-                    </svg>
-                    {isActive && collapsed && (
-                      <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-1 h-4 bg-emerald-400 rounded-full"></span>
-                    )}
-                  </div>
-                  <span className={`overflow-hidden transition-all duration-300 whitespace-nowrap ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                    {item.name}
-                  </span>
-                </>
-              )}
-            </NavLink>
-          )
-
-          return collapsed ? (
-            <Tooltip key={item.name} text={item.name}>
-              {linkContent}
-            </Tooltip>
-          ) : (
-            <div key={item.name}>{linkContent}</div>
-          )
-        })}
+      <nav className={`flex-1 py-2 space-y-0.5 ${collapsed ? 'px-2' : 'px-2'}`}>
+        {navItems.map((item) => (
+          <NavLink
+            key={item.name}
+            to={item.path}
+            end={item.path === '/'}
+            title={collapsed ? item.name : ''}
+            className={({ isActive }) =>
+              `flex items-center rounded-lg text-[13px] font-medium transition-all duration-200 ${collapsed ? 'justify-center px-0 py-3 mx-auto' : 'px-3 py-2.5 gap-3'
+              } ${isActive
+                ? 'bg-emerald-500 text-white'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+              }`
+            }
+          >
+            <svg className="w-[20px] h-[20px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
+            </svg>
+            {!collapsed && <span className="whitespace-nowrap">{item.name}</span>}
+          </NavLink>
+        ))}
       </nav>
 
-      {/* User section */}
-      <div className={`border-t border-slate-800/80 ${collapsed ? 'p-2' : 'p-3'}`}>
-        {collapsed ? (
-          <div className="space-y-1">
-            <Tooltip text={user?.name || 'User'}>
-              <div className="flex items-center justify-center py-2">
-                <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center ring-2 ring-emerald-500/20">
-                  <span className="text-xs font-bold text-white">{user?.name?.[0] || 'A'}</span>
-                </div>
+      {/* Bottom section */}
+      <div className="p-2 space-y-1">
+        {/* Collapse toggle */}
+        <button
+          onClick={onToggle}
+          className={`flex items-center rounded-lg text-[13px] font-medium text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200 w-full ${collapsed ? 'justify-center py-3' : 'px-3 py-2.5 gap-3'
+            }`}
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          <svg className="w-[20px] h-[20px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {collapsed ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            )}
+          </svg>
+          {!collapsed && <span>Collapse</span>}
+        </button>
+
+        {/* User */}
+        <div className="border-t border-slate-100 pt-2">
+          {collapsed ? (
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center">
+                <span className="text-xs font-bold text-white">{user?.name?.[0] || 'A'}</span>
               </div>
-            </Tooltip>
-            <Tooltip text="Sign out">
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+              <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-bold text-white">{user?.name?.[0] || 'A'}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-700 truncate">{user?.name || 'Admin'}</p>
+                <p className="text-[11px] text-slate-400 truncate">{user?.role || 'Administrator'}</p>
+              </div>
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center py-2.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-slate-800/80 transition-all duration-200"
+                title="Sign out"
+                className="p-1 rounded text-slate-400 hover:text-rose-500 transition-colors"
               >
-                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
               </button>
-            </Tooltip>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/50 transition-all duration-200">
-            <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center ring-2 ring-emerald-500/20 flex-shrink-0">
-              <span className="text-xs font-bold text-white">{user?.name?.[0] || 'A'}</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-200 truncate">{user?.name || 'User'}</p>
-              <p className="text-[11px] text-slate-500 truncate">{user?.role || 'Administrator'}</p>
-            </div>
-            <button
-              onClick={handleLogout}
-              title="Sign out"
-              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-all duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </aside>
   )
