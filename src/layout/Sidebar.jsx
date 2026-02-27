@@ -12,7 +12,7 @@ const navItems = [
   { name: 'Settings', path: '/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed = false, onToggle }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -22,28 +22,30 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-60 bg-slate-900 min-h-screen flex flex-col fixed left-0 top-0">
+    <aside className={`bg-slate-900 min-h-screen flex flex-col fixed left-0 top-0 z-20 transition-all duration-300 ${collapsed ? 'w-[72px]' : 'w-60'}`}>
       {/* Logo */}
-      <div className="h-16 flex items-center px-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
+      <div className="h-16 flex items-center px-4">
+        <div className={`flex items-center gap-2.5 ${collapsed ? 'justify-center w-full' : ''}`}>
+          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 cursor-pointer" onClick={onToggle}>
             <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
           </div>
-          <span className="text-white font-semibold text-lg tracking-tight">Chitra Clinic</span>
+          {!collapsed && <span className="text-white font-semibold text-lg tracking-tight whitespace-nowrap">Chitra Clinic</span>}
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className={`flex-1 py-4 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
         {navItems.map((item) => (
           <NavLink
             key={item.name}
             to={item.path}
             end={item.path === '/'}
+            title={collapsed ? item.name : ''}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${isActive
+              `flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
+              } ${isActive
                 ? 'bg-emerald-500/15 text-emerald-400'
                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
               }`
@@ -52,31 +54,61 @@ export default function Sidebar() {
             <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
             </svg>
-            {item.name}
+            {!collapsed && <span className="whitespace-nowrap">{item.name}</span>}
           </NavLink>
         ))}
       </nav>
 
+      {/* Collapse Toggle Button */}
+      <div className={`px-3 pb-2 ${collapsed ? 'px-2' : ''}`}>
+        <button
+          onClick={onToggle}
+          className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-all duration-150 ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'
+            }`}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <svg className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+          </svg>
+          {!collapsed && <span>Collapse</span>}
+        </button>
+      </div>
+
       {/* User section */}
-      <div className="p-3 border-t border-slate-800">
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg">
-          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center">
+      <div className={`border-t border-slate-800 ${collapsed ? 'p-2' : 'p-3'}`}>
+        <div className={`flex items-center rounded-lg ${collapsed ? 'justify-center p-2' : 'gap-3 px-3 py-2'}`}>
+          <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
             <span className="text-xs font-semibold text-white">{user?.name?.[0] || 'C'}</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-200 truncate">{user?.name || 'User'}</p>
-            <p className="text-xs text-slate-500 truncate">{user?.role || 'Chitra Multi Speciality'}</p>
-          </div>
+          {!collapsed && (
+            <>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-200 truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-slate-500 truncate">{user?.role || 'Chitra Multi Speciality'}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                title="Sign out"
+                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </>
+          )}
+        </div>
+        {collapsed && (
           <button
             onClick={handleLogout}
             title="Sign out"
-            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+            className="w-full mt-1 p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors flex items-center justify-center"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
           </button>
-        </div>
+        )}
       </div>
     </aside>
   )
