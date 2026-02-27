@@ -35,8 +35,8 @@ function Toast({ message, type, onClose }) {
 
     return (
         <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg border animate-slide-in ${type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
-                type === 'info' ? 'bg-sky-50 border-sky-200 text-sky-800' :
-                    'bg-rose-50 border-rose-200 text-rose-800'
+            type === 'info' ? 'bg-sky-50 border-sky-200 text-sky-800' :
+                'bg-rose-50 border-rose-200 text-rose-800'
             }`}>
             {type === 'success' && (
                 <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,7 +62,7 @@ export default function ExpiryAlerts() {
     const [expiryData, setExpiryData] = useState(initialExpiryData)
     const [activeFilter, setActiveFilter] = useState(90)
     const [searchTerm, setSearchTerm] = useState('')
-    const [supplierReturnsLog, setSupplierReturnsLog] = useState([])
+    const [stockAdjustmentsLog, setStockAdjustmentsLog] = useState([])
 
     // Modal state
     const [disposeModal, setDisposeModal] = useState({ open: false, medicine: null })
@@ -85,6 +85,21 @@ export default function ExpiryAlerts() {
         setExpiryData(prev => prev.map(m =>
             m.id === med.id ? { ...m, stock: 0 } : m
         ))
+
+        // Log disposal
+        const disposeEntry = {
+            id: Date.now(),
+            type: 'Dispose',
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+            medicineName: med.name,
+            batch: med.batch,
+            supplier: med.supplier,
+            quantity: med.stock,
+            reason: 'Expired / Near expiry — Disposed',
+            valueLost: med.stock * med.purchasePrice,
+        }
+        setStockAdjustmentsLog(prev => [disposeEntry, ...prev])
 
         showToast(`${med.name} — Stock disposed successfully. Marked as Out of Stock.`, 'success')
         setDisposeModal({ open: false, medicine: null })
@@ -110,15 +125,17 @@ export default function ExpiryAlerts() {
         // Log return
         const newEntry = {
             id: Date.now(),
+            type: 'Return',
             date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
             medicineName: med.name,
             batch: med.batch,
             supplier: med.supplier,
             quantity: qty,
             reason: returnReason || 'Near expiry',
-            valueReturned: qty * med.purchasePrice,
+            valueLost: qty * med.purchasePrice,
         }
-        setSupplierReturnsLog(prev => [newEntry, ...prev])
+        setStockAdjustmentsLog(prev => [newEntry, ...prev])
 
         showToast(`Return recorded — ${qty} units of ${med.name} returned to ${med.supplier}`, 'info')
         setReturnModal({ open: false, medicine: null })
@@ -448,44 +465,82 @@ export default function ExpiryAlerts() {
                 </div>
             )}
 
-            {/* Supplier Returns Log */}
-            {supplierReturnsLog.length > 0 && (
+            {/* Stock Adjustments Log */}
+            {stockAdjustmentsLog.length > 0 && (
                 <div className="bg-white rounded-xl border border-slate-200/60 overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                        <div>
-                            <h2 className="font-semibold text-slate-800">Supplier Returns Log</h2>
-                            <p className="text-xs text-slate-400 mt-0.5">Record of returned medicines</p>
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center">
+                                <svg className="w-4.5 h-4.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 className="font-semibold text-slate-800">Stock Adjustments Log</h2>
+                                <p className="text-xs text-slate-400 mt-0.5">Audit trail of all returns & disposals</p>
+                            </div>
                         </div>
-                        <span className="text-xs text-slate-400">{supplierReturnsLog.length} entries</span>
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                <span className="w-2 h-2 rounded-full bg-sky-400"></span>
+                                {stockAdjustmentsLog.filter(e => e.type === 'Return').length} Returns
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                <span className="w-2 h-2 rounded-full bg-rose-400"></span>
+                                {stockAdjustmentsLog.filter(e => e.type === 'Dispose').length} Disposals
+                            </div>
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="w-full min-w-[700px]">
+                        <table className="w-full min-w-[800px]">
                             <thead>
-                                <tr className="border-b border-slate-100">
-                                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+                                <tr className="border-b border-slate-100 bg-slate-50/50">
+                                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date & Time</th>
+                                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">Type</th>
                                     <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">Medicine</th>
                                     <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">Batch</th>
                                     <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">Supplier</th>
                                     <th className="px-5 py-3 text-center text-xs font-medium text-slate-500 uppercase">Qty</th>
-                                    <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">Value</th>
+                                    <th className="px-5 py-3 text-right text-xs font-medium text-slate-500 uppercase">Loss Value</th>
                                     <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase">Reason</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {supplierReturnsLog.map(entry => (
+                                {stockAdjustmentsLog.map(entry => (
                                     <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-5 py-3 text-sm text-slate-600">{entry.date}</td>
+                                        <td className="px-5 py-3">
+                                            <p className="text-sm text-slate-700">{entry.date}</p>
+                                            <p className="text-[10px] text-slate-400">{entry.time}</p>
+                                        </td>
+                                        <td className="px-5 py-3">
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold ${entry.type === 'Return' ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700'
+                                                }`}>
+                                                {entry.type === 'Return' ? '↩' : '🗑'} {entry.type}
+                                            </span>
+                                        </td>
                                         <td className="px-5 py-3 text-sm font-medium text-slate-800">{entry.medicineName}</td>
                                         <td className="px-5 py-3 text-xs font-mono text-slate-500">{entry.batch}</td>
                                         <td className="px-5 py-3 text-sm text-slate-600">{entry.supplier}</td>
                                         <td className="px-5 py-3 text-center">
-                                            <span className="text-sm font-bold text-sky-600">-{entry.quantity}</span>
+                                            <span className={`text-sm font-bold ${entry.type === 'Return' ? 'text-sky-600' : 'text-rose-600'}`}>-{entry.quantity}</span>
                                         </td>
-                                        <td className="px-5 py-3 text-right text-sm font-medium text-slate-700">₹{entry.valueReturned.toLocaleString()}</td>
-                                        <td className="px-5 py-3 text-sm text-slate-500">{entry.reason}</td>
+                                        <td className="px-5 py-3 text-right text-sm font-medium text-rose-600">₹{entry.valueLost.toLocaleString()}</td>
+                                        <td className="px-5 py-3 text-sm text-slate-500 max-w-[200px] truncate">{entry.reason}</td>
                                     </tr>
                                 ))}
                             </tbody>
+                            <tfoot>
+                                <tr className="border-t border-slate-200 bg-slate-50/50">
+                                    <td colSpan={5} className="px-5 py-3 text-sm font-semibold text-slate-700">Total Loss</td>
+                                    <td className="px-5 py-3 text-center text-sm font-bold text-slate-700">
+                                        -{stockAdjustmentsLog.reduce((sum, e) => sum + e.quantity, 0)} units
+                                    </td>
+                                    <td className="px-5 py-3 text-right text-sm font-bold text-rose-600">
+                                        ₹{stockAdjustmentsLog.reduce((sum, e) => sum + e.valueLost, 0).toLocaleString()}
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
