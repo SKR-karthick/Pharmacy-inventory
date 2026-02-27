@@ -22,7 +22,7 @@ export default function Sidebar({ collapsed = false, onToggle }) {
   }
 
   return (
-    <aside className={`bg-white min-h-screen flex flex-col fixed left-0 top-0 z-20 border-r border-slate-200/80 transition-all duration-300 ease-in-out ${collapsed ? 'w-[68px]' : 'w-60'}`}>
+    <aside className={`bg-white dark:bg-slate-800 min-h-screen flex flex-col fixed left-0 top-0 z-20 border-r border-slate-200/80 dark:border-slate-700/80 transition-all duration-300 ease-in-out ${collapsed ? 'w-[68px]' : 'w-60'}`}>
 
       {/* Logo */}
       <div className={`h-16 flex items-center ${collapsed ? 'justify-center px-3' : 'px-5'}`}>
@@ -33,7 +33,7 @@ export default function Sidebar({ collapsed = false, onToggle }) {
             </svg>
           </div>
           {!collapsed && (
-            <span className="text-emerald-600 font-bold text-lg tracking-tight whitespace-nowrap">Chitra Clinic</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-lg tracking-tight whitespace-nowrap">Chitra Clinic</span>
           )}
         </div>
       </div>
@@ -50,7 +50,7 @@ export default function Sidebar({ collapsed = false, onToggle }) {
               `flex items-center rounded-lg text-[13px] font-medium transition-all duration-200 ${collapsed ? 'justify-center px-0 py-3 mx-auto' : 'px-3 py-2.5 gap-3'
               } ${isActive
                 ? 'bg-emerald-500 text-white'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-800 dark:hover:text-slate-200'
               }`
             }
           >
@@ -67,7 +67,7 @@ export default function Sidebar({ collapsed = false, onToggle }) {
         {/* Collapse toggle */}
         <button
           onClick={onToggle}
-          className={`flex items-center rounded-lg text-[13px] font-medium text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200 w-full ${collapsed ? 'justify-center py-3' : 'px-3 py-2.5 gap-3'
+          className={`flex items-center rounded-lg text-[13px] font-medium text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all duration-200 w-full ${collapsed ? 'justify-center py-3' : 'px-3 py-2.5 gap-3'
             }`}
           title={collapsed ? 'Expand' : 'Collapse'}
         >
@@ -82,7 +82,7 @@ export default function Sidebar({ collapsed = false, onToggle }) {
         </button>
 
         {/* User */}
-        <div className="border-t border-slate-100 pt-2">
+        <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
           {collapsed ? (
             <div className="flex flex-col items-center gap-1">
               <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center">
@@ -90,13 +90,13 @@ export default function Sidebar({ collapsed = false, onToggle }) {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
+            <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
               <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-bold text-white">{user?.name?.[0] || 'A'}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-700 truncate">{user?.name || 'Admin'}</p>
-                <p className="text-[11px] text-slate-400 truncate">{user?.role || 'Administrator'}</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">{user?.name || 'Admin'}</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{user?.role || 'Administrator'}</p>
               </div>
               <button
                 onClick={handleLogout}
