@@ -1,45 +1,195 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useMedicines } from '../context/MedicinesContext'
+
+// --- Helper Functions ---
+function findMedicine(medicines, query) {
+  const q = query.toLowerCase().trim()
+  if (!q) return []
+  return medicines.filter(m =>
+    m.name.toLowerCase().includes(q) ||
+    (m.barcode && m.barcode.includes(q))
+  )
+}
+
+function findByBarcode(medicines, barcode) {
+  return medicines.find(m => m.barcode === barcode) || null
+}
+
+// --- Toast Component ---
+function BillingToast({ message, type, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 2500)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  const styles = {
+    success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+    error: 'bg-rose-50 border-rose-200 text-rose-800',
+    warning: 'bg-amber-50 border-amber-200 text-amber-800',
+  }
+  const icons = {
+    success: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+    error: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+    warning: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+  }
+
+  return (
+    <div className={`fixed top-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border animate-slide-in ${styles[type] || styles.success}`}>
+      <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={icons[type] || icons.success} />
+      </svg>
+      <span className="text-sm font-medium">{message}</span>
+    </div>
+  )
+}
 
 export default function Billing() {
   const { medicines } = useMedicines()
-  const medicinesList = medicines.map(m => ({ id: m.id, name: m.name, price: m.sellingPrice, stock: m.quantity }))
-  const [selectedMedicine, setSelectedMedicine] = useState('')
-  const [quantity, setQuantity] = useState(1)
+  const medicinesList = medicines.map(m => ({ id: m.id, name: m.name, barcode: m.barcode, price: m.sellingPrice, stock: m.quantity, category: m.category }))
+
+  // POS search state
+  const [searchInput, setSearchInput] = useState('')
+  const [suggestions, setSuggestions] = useState([])
+  const [highlightIndex, setHighlightIndex] = useState(-1)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const searchRef = useRef(null)
+
+  // Cart & customer state
   const [cartItems, setCartItems] = useState([])
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [doctorName, setDoctorName] = useState('')
   const invoiceRef = useRef(null)
 
-  const handleAddToCart = () => {
-    if (!selectedMedicine) return
+  // Toast state
+  const [toast, setToast] = useState(null)
+  const showToast = (message, type = 'success') => setToast({ message, type, key: Date.now() })
 
-    const medicine = medicinesList.find(m => m.id === parseInt(selectedMedicine))
+  // Auto-focus search on mount
+  useEffect(() => {
+    searchRef.current?.focus()
+  }, [])
+
+  // --- Search & Filter ---
+  const handleSearchChange = (e) => {
+    const value = e.target.value
+    setSearchInput(value)
+
+    if (value.trim().length > 0) {
+      const results = findMedicine(medicinesList, value)
+      setSuggestions(results)
+      setShowSuggestions(true)
+      setHighlightIndex(results.length > 0 ? 0 : -1)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+      setHighlightIndex(-1)
+    }
+  }
+
+  // --- Add to Cart Logic ---
+  const addToCart = (medicine) => {
     if (!medicine) return
+
+    if (medicine.stock <= 0) {
+      showToast(`${medicine.name} — Out of stock!`, 'error')
+      clearAndRefocus()
+      return
+    }
 
     const existingItem = cartItems.find(item => item.id === medicine.id)
 
     if (existingItem) {
       setCartItems(cartItems.map(item =>
         item.id === medicine.id
-          ? { ...item, qty: item.qty + quantity, total: (item.qty + quantity) * item.price }
+          ? { ...item, qty: item.qty + 1, total: (item.qty + 1) * item.price }
           : item
       ))
+      showToast(`${medicine.name} — Qty increased to ${existingItem.qty + 1}`, 'success')
     } else {
       setCartItems([...cartItems, {
         id: medicine.id,
         name: medicine.name,
-        qty: quantity,
+        qty: 1,
         price: medicine.price,
-        total: quantity * medicine.price
+        total: medicine.price
       }])
+      showToast(`${medicine.name} — Added to cart ✓`, 'success')
     }
 
-    setSelectedMedicine('')
-    setQuantity(1)
+    clearAndRefocus()
   }
 
+  const clearAndRefocus = () => {
+    setSearchInput('')
+    setSuggestions([])
+    setShowSuggestions(false)
+    setHighlightIndex(-1)
+    setTimeout(() => searchRef.current?.focus(), 50)
+  }
+
+  // --- Barcode Scan Handler ---
+  const handleBarcodeScan = (input) => {
+    const barcode = input.trim()
+    const medicine = findByBarcode(medicinesList, barcode)
+
+    if (medicine) {
+      addToCart(medicine)
+    } else {
+      showToast(`Barcode "${barcode}" — Medicine not found`, 'error')
+      clearAndRefocus()
+    }
+  }
+
+  // --- Keyboard Navigation ---
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (suggestions.length > 0) {
+        setHighlightIndex(prev => Math.min(prev + 1, suggestions.length - 1))
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (suggestions.length > 0) {
+        setHighlightIndex(prev => Math.max(prev - 1, 0))
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const value = searchInput.trim()
+
+      // Check if it looks like a barcode (long numeric string)
+      if (/^\d{8,}$/.test(value)) {
+        handleBarcodeScan(value)
+        return
+      }
+
+      // If a suggestion is highlighted, add it
+      if (highlightIndex >= 0 && suggestions[highlightIndex]) {
+        addToCart(suggestions[highlightIndex])
+        return
+      }
+
+      // If exactly one match, auto-add
+      if (suggestions.length === 1) {
+        addToCart(suggestions[0])
+        return
+      }
+
+      // If input matches a barcode exactly
+      if (value.length > 0) {
+        const barcodeMatch = findByBarcode(medicinesList, value)
+        if (barcodeMatch) {
+          addToCart(barcodeMatch)
+          return
+        }
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+      setHighlightIndex(-1)
+    }
+  }
+
+  // --- Cart Operations ---
   const updateQuantity = (id, change) => {
     setCartItems(cartItems.map(item => {
       if (item.id === id) {
@@ -58,6 +208,7 @@ export default function Billing() {
   const gst = Math.round(subtotal * 0.05)
   const total = subtotal + gst
 
+  // --- Print ---
   const handlePrint = () => {
     const printWindow = window.open('', '_blank')
     printWindow.document.write(`
@@ -73,7 +224,6 @@ export default function Billing() {
           .header h2 { font-size: 14px; color: #475569; font-weight: 500; margin-top: 2px; }
           .header p { font-size: 11px; color: #64748b; margin-top: 4px; }
           .info-row { display: flex; justify-content: space-between; margin-bottom: 15px; }
-          .info-block { }
           .info-block p { margin-bottom: 3px; }
           .info-block .label { color: #64748b; font-size: 11px; }
           .info-block .value { font-weight: 600; }
@@ -157,7 +307,7 @@ export default function Billing() {
 
   const handleGenerateInvoice = () => {
     if (cartItems.length === 0) {
-      alert('Please add items to cart')
+      showToast('Please add items to cart first', 'warning')
       return
     }
     handlePrint()
@@ -168,10 +318,14 @@ export default function Billing() {
     setCustomerName('')
     setCustomerPhone('')
     setDoctorName('')
+    clearAndRefocus()
   }
 
   return (
     <div className="space-y-6">
+      {/* Toast */}
+      {toast && <BillingToast key={toast.key} message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-slate-800">Billing</h1>
@@ -179,46 +333,104 @@ export default function Billing() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Add Medicine & Cart */}
+        {/* Left Column - POS Search & Cart */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Add Medicine Section */}
+          {/* POS Search Input */}
           <div className="bg-white rounded-xl p-6 border border-slate-200/60">
-            <h2 className="text-base font-semibold text-slate-800 mb-4">Add Medicine</h2>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-slate-600 mb-2">Select Medicine</label>
-                <select
-                  value={selectedMedicine}
-                  onChange={(e) => setSelectedMedicine(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white transition-all"
-                >
-                  <option value="">Choose medicine...</option>
-                  {medicinesList.map(med => (
-                    <option key={med.id} value={med.id}>
-                      {med.name} - ₹{med.price} (Stock: {med.stock})
-                    </option>
-                  ))}
-                </select>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-slate-800">Add Medicine</h2>
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                Barcode Ready
               </div>
-              <div className="w-28">
-                <label className="block text-sm font-medium text-slate-600 mb-2">Quantity</label>
+            </div>
+
+            <div className="relative">
+              <div className="relative">
+                <svg className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
                 <input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  ref={searchRef}
+                  type="text"
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => { if (searchInput.trim()) setShowSuggestions(true) }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  placeholder="Scan barcode or type medicine name..."
+                  autoComplete="off"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-medium placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-0 focus:border-emerald-500 focus:bg-white transition-all"
                 />
+                {searchInput && (
+                  <button
+                    onClick={clearAndRefocus}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
-              <div className="flex items-end">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={!selectedMedicine}
-                  className="px-5 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
-                >
-                  Add
-                </button>
-              </div>
+
+              {/* Autocomplete Suggestions Dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-xl shadow-slate-200/50 z-30 max-h-[280px] overflow-y-auto">
+                  {suggestions.map((med, index) => (
+                    <button
+                      key={med.id}
+                      onMouseDown={(e) => { e.preventDefault(); addToCart(med) }}
+                      onMouseEnter={() => setHighlightIndex(index)}
+                      className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors ${index === highlightIndex ? 'bg-emerald-50' : 'hover:bg-slate-50'
+                        } ${index === 0 ? 'rounded-t-xl' : ''} ${index === suggestions.length - 1 ? 'rounded-b-xl' : 'border-b border-slate-50'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${index === highlightIndex ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                          {med.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-medium ${index === highlightIndex ? 'text-emerald-800' : 'text-slate-800'}`}>{med.name}</p>
+                          <p className="text-[11px] text-slate-400">{med.category} • {med.barcode}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-slate-800">₹{med.price}</p>
+                        <p className={`text-[11px] font-medium ${med.stock <= 10 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                          Stock: {med.stock}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* No results */}
+              {showSuggestions && searchInput.trim() && suggestions.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-slate-200 shadow-xl shadow-slate-200/50 z-30 px-4 py-6 text-center">
+                  <svg className="w-8 h-8 text-slate-200 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-slate-400">No medicine found for "{searchInput}"</p>
+                  <p className="text-xs text-slate-300 mt-0.5">Try a different name or scan barcode</p>
+                </div>
+              )}
+            </div>
+
+            {/* Shortcut hints */}
+            <div className="flex items-center gap-4 mt-3">
+              <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-medium text-slate-500">↑↓</kbd> Navigate
+              </span>
+              <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-medium text-slate-500">Enter</kbd> Add to cart
+              </span>
+              <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                <kbd className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-medium text-slate-500">Esc</kbd> Close
+              </span>
             </div>
           </div>
 
@@ -234,7 +446,7 @@ export default function Billing() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
                 <p className="text-slate-400 text-sm">No items in cart</p>
-                <p className="text-xs text-slate-300 mt-1">Select a medicine and add to cart</p>
+                <p className="text-xs text-slate-300 mt-1">Scan a barcode or search for a medicine to begin</p>
               </div>
             ) : (
               <table className="w-full">
@@ -386,7 +598,7 @@ export default function Billing() {
                 </button>
                 <button
                   onClick={() => {
-                    if (cartItems.length === 0) { alert('Please add items to cart'); return }
+                    if (cartItems.length === 0) { showToast('Please add items to cart first', 'warning'); return }
                     handlePrint()
                   }}
                   disabled={cartItems.length === 0}
