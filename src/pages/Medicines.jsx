@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMedicines } from '../context/MedicinesContext'
 
-const LOW_STOCK_THRESHOLD = 20
+const LOW_STOCK_THRESHOLD = 50
 
 // Format: "8 Strips (80 Tablets)"
 function formatStock(totalUnits, unitsPerPack, purchaseUnit = 'Strip', sellingUnit = 'Tablet') {

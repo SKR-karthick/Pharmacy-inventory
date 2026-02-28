@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { MedicinesProvider } from './context/MedicinesContext'
+import { InvoicesProvider } from './context/InvoicesContext'
 import MainLayout from './layout/MainLayout'
 import Dashboard from './pages/Dashboard'
 import Medicines from './pages/Medicines'
@@ -58,7 +59,9 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <MedicinesProvider>
-          <AppRoutes />
+          <InvoicesProvider>
+            <AppRoutes />
+          </InvoicesProvider>
         </MedicinesProvider>
       </AuthProvider>
     </BrowserRouter>

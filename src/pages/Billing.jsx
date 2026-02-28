@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMedicines } from '../context/MedicinesContext'
+import { useInvoices } from '../context/InvoicesContext'
 
 // --- Helper Functions ---
 function findMedicine(medicines, query) {
@@ -45,6 +46,7 @@ function BillingToast({ message, type, onClose }) {
 
 export default function Billing() {
   const { medicines, deductStock } = useMedicines()
+  const { addInvoice } = useInvoices()
   const medicinesList = medicines.map(m => ({ id: m.id, name: m.name, barcode: m.barcode, price: m.sellingPricePerUnit || m.sellingPrice, stock: m.totalStockUnits || m.quantity, category: m.category, sellingUnit: m.sellingUnit || 'Tablet', unitsPerPack: m.unitsPerPack || 10, purchasePrice: m.purchasePrice }))
 
   // POS search state
@@ -351,6 +353,27 @@ export default function Billing() {
     // Deduct stock in tablets for each cart item
     cartItems.forEach(item => {
       deductStock(item.id, item.actualUnits)
+    })
+
+    // Save invoice to InvoicesContext
+    const invoiceProfit = cartItems.reduce((sum, item) => {
+      const costPerUnit = item.purchasePrice || 0
+      const sellPerUnit = item.price || 0
+      return sum + ((sellPerUnit - costPerUnit) * item.actualUnits)
+    }, 0)
+
+    addInvoice({
+      customer: customerName || 'Walk-in Customer',
+      phone: customerPhone,
+      doctor: doctorName,
+      items: cartItems.map(item => ({ name: item.name, qty: item.qty, actualUnits: item.actualUnits, price: item.pricePerQty, total: item.total, sellMode: item.sellMode })),
+      itemCount: cartItems.length,
+      total: total,
+      subtotal: subtotal,
+      gst: gst,
+      profit: Math.round(invoiceProfit),
+      paymentMethod: paymentMethod,
+      status: paymentMethod === 'credit' ? 'unpaid' : 'paid',
     })
 
     // Set invoice status based on payment method
