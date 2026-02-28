@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 
 const MedicinesContext = createContext(null)
 
@@ -18,7 +18,15 @@ const initialMedicines = [
 ]
 
 export function MedicinesProvider({ children }) {
-    const [medicines, setMedicines] = useState(initialMedicines)
+    const [medicines, setMedicines] = useState(() => {
+        const saved = localStorage.getItem('pharmacy-medicines')
+        return saved ? JSON.parse(saved) : initialMedicines
+    })
+
+    // Persist to localStorage on every change
+    useEffect(() => {
+        localStorage.setItem('pharmacy-medicines', JSON.stringify(medicines))
+    }, [medicines])
 
     const addMedicine = (medicineData) => {
         const newMedicine = {
