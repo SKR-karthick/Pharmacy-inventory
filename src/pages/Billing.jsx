@@ -59,6 +59,7 @@ export default function Billing() {
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [doctorName, setDoctorName] = useState('')
+  const [sellAs, setSellAs] = useState('tablet') // 'tablet' | 'strip'
   const invoiceRef = useRef(null)
 
   // Payment state
@@ -102,34 +103,44 @@ export default function Billing() {
       return
     }
 
-    const existingItem = cartItems.find(item => item.id === medicine.id)
-    const currentQty = existingItem ? existingItem.qty : 0
+    // Calculate units to add based on sell mode
+    const unitsToAdd = sellAs === 'strip' ? (medicine.unitsPerPack || 10) : 1
+    const pricePerQty = sellAs === 'strip' ? medicine.price * (medicine.unitsPerPack || 10) : medicine.price
 
-    // Stock validation
-    if (currentQty + 1 > medicine.stock) {
-      showToast(`${medicine.name} — Insufficient stock! Only ${medicine.stock} ${medicine.sellingUnit || 'unit'}s available`, 'error')
+    const existingItem = cartItems.find(item => item.id === medicine.id)
+    const currentUnitsInCart = existingItem ? existingItem.actualUnits : 0
+
+    // Stock validation: check if we have enough tablets
+    if (currentUnitsInCart + unitsToAdd > medicine.stock) {
+      showToast(`${medicine.name} — Insufficient stock! Only ${medicine.stock} ${medicine.sellingUnit || 'Tablet'}s available`, 'error')
       clearAndRefocus()
       return
     }
 
     if (existingItem) {
+      const newQty = existingItem.qty + 1
+      const newActualUnits = existingItem.actualUnits + unitsToAdd
       setCartItems(cartItems.map(item =>
         item.id === medicine.id
-          ? { ...item, qty: item.qty + 1, total: (item.qty + 1) * item.price }
+          ? { ...item, qty: newQty, actualUnits: newActualUnits, total: newQty * item.pricePerQty }
           : item
       ))
-      showToast(`${medicine.name} — Qty increased to ${existingItem.qty + 1}`, 'success')
+      showToast(`${medicine.name} — Qty increased to ${newQty} ${existingItem.sellMode === 'strip' ? 'strip' : 'tablet'}s`, 'success')
     } else {
       setCartItems([...cartItems, {
         id: medicine.id,
         name: medicine.name,
         qty: 1,
+        actualUnits: unitsToAdd, // always store actual tablets for deduction
         price: medicine.price,
-        total: medicine.price,
+        pricePerQty: pricePerQty,
+        total: pricePerQty,
         sellingUnit: medicine.sellingUnit || 'Tablet',
+        unitsPerPack: medicine.unitsPerPack || 10,
         purchasePrice: medicine.purchasePrice || 0,
+        sellMode: sellAs,
       }])
-      showToast(`${medicine.name} — Added to cart ✓`, 'success')
+      showToast(`${medicine.name} — Added (${sellAs === 'strip' ? `1 strip = ${unitsToAdd} tablets` : '1 tablet'}) ✓`, 'success')
     }
 
     clearAndRefocus()
@@ -209,7 +220,8 @@ export default function Billing() {
     setCartItems(cartItems.map(item => {
       if (item.id === id) {
         const newQty = Math.max(1, item.qty + change)
-        return { ...item, qty: newQty, total: newQty * item.price }
+        const unitsPerQty = item.sellMode === 'strip' ? (item.unitsPerPack || 10) : 1
+        return { ...item, qty: newQty, actualUnits: newQty * unitsPerQty, total: newQty * item.pricePerQty }
       }
       return item
     }))
@@ -336,9 +348,9 @@ export default function Billing() {
   const handleSaveInvoice = () => {
     if (!canSave) return
 
-    // Deduct stock for each cart item
+    // Deduct stock in tablets for each cart item
     cartItems.forEach(item => {
-      deductStock(item.id, item.qty)
+      deductStock(item.id, item.actualUnits)
     })
 
     // Set invoice status based on payment method
@@ -371,6 +383,7 @@ export default function Billing() {
     setPaymentMethod('cash')
     setAmountReceived('')
     setInvoiceStatus('pending')
+    setSellAs('tablet')
     clearAndRefocus()
   }
 
@@ -451,9 +464,9 @@ export default function Billing() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-slate-800">₹{med.price}</p>
+                        <p className="text-sm font-semibold text-slate-800">₹{med.price}/{med.sellingUnit || 'Tab'}</p>
                         <p className={`text-[11px] font-medium ${med.stock <= 10 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                          Stock: {med.stock}
+                          {med.stock} {med.sellingUnit || 'Tablet'}s
                         </p>
                       </div>
                     </button>
@@ -491,7 +504,27 @@ export default function Billing() {
           <div className="bg-white rounded-xl border border-slate-200/60 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-base font-semibold text-slate-800">Cart Items</h2>
-              <span className="text-sm text-slate-400">{cartItems.length} items</span>
+              <div className="flex items-center gap-3">
+                {/* Sell As Toggle */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-slate-400">Sell as:</span>
+                  <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setSellAs('tablet')}
+                      className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${sellAs === 'tablet' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Tablet
+                    </button>
+                    <button
+                      onClick={() => setSellAs('strip')}
+                      className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${sellAs === 'strip' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Strip
+                    </button>
+                  </div>
+                </div>
+                <span className="text-sm text-slate-400">{cartItems.length} items</span>
+              </div>
             </div>
             {cartItems.length === 0 ? (
               <div className="px-6 py-12 text-center">
@@ -515,7 +548,14 @@ export default function Billing() {
                 <tbody className="divide-y divide-slate-100">
                   {cartItems.map((item) => (
                     <tr key={item.id}>
-                      <td className="px-6 py-4 font-medium text-slate-800 text-sm">{item.name}</td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-medium text-slate-800 text-sm">{item.name}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {item.sellMode === 'strip' ? `${item.qty} strip × ${item.unitsPerPack} = ${item.actualUnits} tablets` : `${item.qty} ${item.sellingUnit || 'tablet'}s`}
+                          </p>
+                        </div>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
@@ -533,7 +573,7 @@ export default function Billing() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right text-slate-500 text-sm">₹{item.price}</td>
+                      <td className="px-6 py-4 text-right text-slate-500 text-sm">₹{item.pricePerQty}{item.sellMode === 'strip' ? '/strip' : `/${item.sellingUnit || 'tab'}`}</td>
                       <td className="px-6 py-4 text-right font-semibold text-slate-800 text-sm">₹{item.total}</td>
                       <td className="px-6 py-4 text-right">
                         <button
