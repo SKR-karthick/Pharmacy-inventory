@@ -61,6 +61,11 @@ export default function Billing() {
   const [doctorName, setDoctorName] = useState('')
   const invoiceRef = useRef(null)
 
+  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [amountReceived, setAmountReceived] = useState('')
+  const [invoiceStatus, setInvoiceStatus] = useState('pending') // pending | paid | unpaid | partial
+
   // Toast state
   const [toast, setToast] = useState(null)
   const showToast = (message, type = 'success') => setToast({ message, type, key: Date.now() })
@@ -207,6 +212,11 @@ export default function Billing() {
   const subtotal = cartItems.reduce((sum, item) => sum + item.total, 0)
   const gst = Math.round(subtotal * 0.05)
   const total = subtotal + gst
+  const cashReceived = parseFloat(amountReceived) || 0
+  const changeAmount = cashReceived - total
+  const isCashInsufficient = paymentMethod === 'cash' && cashReceived > 0 && cashReceived < total
+  const isCashEmpty = paymentMethod === 'cash' && amountReceived === ''
+  const canSave = cartItems.length > 0 && !(paymentMethod === 'cash' && (isCashInsufficient || isCashEmpty))
 
   // --- Print ---
   const handlePrint = () => {
@@ -313,11 +323,39 @@ export default function Billing() {
     handlePrint()
   }
 
+  const handleSaveInvoice = () => {
+    if (!canSave) return
+
+    // Set invoice status based on payment method
+    if (paymentMethod === 'credit') {
+      setInvoiceStatus('unpaid')
+    } else {
+      setInvoiceStatus('paid')
+    }
+
+    showToast('Invoice saved successfully ✓', 'success')
+
+    // Reset after short delay so user sees the toast
+    setTimeout(() => {
+      setCartItems([])
+      setCustomerName('')
+      setCustomerPhone('')
+      setDoctorName('')
+      setPaymentMethod('cash')
+      setAmountReceived('')
+      setInvoiceStatus('pending')
+      clearAndRefocus()
+    }, 800)
+  }
+
   const handleNewInvoice = () => {
     setCartItems([])
     setCustomerName('')
     setCustomerPhone('')
     setDoctorName('')
+    setPaymentMethod('cash')
+    setAmountReceived('')
+    setInvoiceStatus('pending')
     clearAndRefocus()
   }
 
@@ -502,6 +540,7 @@ export default function Billing() {
 
         {/* Right Column - Invoice Preview */}
         <div className="space-y-6">
+          {/* Customer Details */}
           <div className="bg-white rounded-xl p-5 border border-slate-200/60">
             <h2 className="text-base font-semibold text-slate-800 mb-4">Customer Details</h2>
             <div className="space-y-3">
@@ -529,11 +568,110 @@ export default function Billing() {
             </div>
           </div>
 
+          {/* Payment Details */}
+          <div className="bg-white rounded-xl p-5 border border-slate-200/60">
+            <h2 className="text-base font-semibold text-slate-800 mb-4">Payment Details</h2>
+
+            {/* Payment Method Radio Buttons */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {[
+                { id: 'cash', label: 'Cash', icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
+                { id: 'upi', label: 'UPI', icon: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z' },
+                { id: 'card', label: 'Card', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
+                { id: 'credit', label: 'Credit', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+              ].map((method) => (
+                <button
+                  key={method.id}
+                  onClick={() => { setPaymentMethod(method.id); setAmountReceived('') }}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${paymentMethod === method.id
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                >
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={method.icon} />
+                  </svg>
+                  {method.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Cash: Amount Received + Change */}
+            {paymentMethod === 'cash' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-slate-500 mb-1.5 block">Amount Received</label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">₹</span>
+                    <input
+                      type="number"
+                      value={amountReceived}
+                      onChange={(e) => setAmountReceived(e.target.value)}
+                      placeholder="0.00"
+                      min="0"
+                      className="w-full pl-8 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                </div>
+                {amountReceived !== '' && (
+                  <div className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg ${changeAmount >= 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-rose-50 border border-rose-200'
+                    }`}>
+                    <span className={`text-xs font-medium ${changeAmount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {changeAmount >= 0 ? 'Change to return' : 'Insufficient amount'}
+                    </span>
+                    <span className={`text-sm font-bold ${changeAmount >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      ₹{Math.abs(changeAmount)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* UPI / Card: Success Message */}
+            {(paymentMethod === 'upi' || paymentMethod === 'card') && (
+              <div className="flex items-center gap-2.5 px-3.5 py-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-emerald-700">Payment Marked as Successful</p>
+                  <p className="text-[11px] text-emerald-500">Demo mode — no gateway required</p>
+                </div>
+              </div>
+            )}
+
+            {/* Credit: Pending Note */}
+            {paymentMethod === 'credit' && (
+              <div className="flex items-center gap-2.5 px-3.5 py-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <svg className="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-amber-700">Payment Pending</p>
+                  <p className="text-[11px] text-amber-500">Invoice will be marked as UNPAID</p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Invoice Preview Card */}
           <div ref={invoiceRef} className="bg-white rounded-xl border border-slate-200/60 overflow-hidden">
             <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-4">
-              <h2 className="text-base font-bold text-white">Chitra Multi Speciality Clinic</h2>
-              <p className="text-emerald-100 text-xs mt-0.5">Pharmacy Division</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-white">Chitra Multi Speciality Clinic</h2>
+                  <p className="text-emerald-100 text-xs mt-0.5">Pharmacy Division</p>
+                </div>
+                {/* Invoice Status Badge */}
+                {invoiceStatus !== 'pending' && (
+                  <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide ${invoiceStatus === 'paid' ? 'bg-emerald-500 text-white' :
+                      invoiceStatus === 'unpaid' ? 'bg-rose-500 text-white' :
+                        'bg-amber-500 text-white'
+                    }`}>
+                    {invoiceStatus}
+                  </span>
+                )}
+              </div>
               <p className="text-emerald-200/70 text-[11px] mt-1">Natarajan St, Pammal, Chennai - 600075</p>
             </div>
             <div className="px-5 pt-4">
@@ -583,31 +721,38 @@ export default function Billing() {
                   <span className="text-sm font-semibold text-slate-800">Total</span>
                   <span className="text-lg font-bold text-emerald-600">₹{total}</span>
                 </div>
+                {/* Payment method display */}
+                <div className="flex justify-between pt-1.5">
+                  <span className="text-[11px] text-slate-400">Payment</span>
+                  <span className="text-xs font-medium text-slate-600 capitalize">{paymentMethod}{paymentMethod === 'credit' ? ' (Unpaid)' : ''}</span>
+                </div>
+                {paymentMethod === 'cash' && cashReceived > 0 && changeAmount >= 0 && (
+                  <div className="flex justify-between pt-1">
+                    <span className="text-[11px] text-slate-400">Change</span>
+                    <span className="text-xs font-medium text-emerald-600">₹{changeAmount}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2 pb-4">
                 <button
+                  onClick={handleSaveInvoice}
+                  disabled={!canSave}
+                  className="flex-1 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Save Invoice
+                </button>
+                <button
                   onClick={handleGenerateInvoice}
                   disabled={cartItems.length === 0}
-                  className="flex-1 py-2.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  className="px-3 py-2.5 bg-sky-500 text-white text-sm font-medium rounded-lg hover:bg-sky-600 transition-colors disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                   </svg>
-                  Print
-                </button>
-                <button
-                  onClick={() => {
-                    if (cartItems.length === 0) { showToast('Please add items to cart first', 'warning'); return }
-                    handlePrint()
-                  }}
-                  disabled={cartItems.length === 0}
-                  className="flex-1 py-2.5 bg-sky-500 text-white text-sm font-medium rounded-lg hover:bg-sky-600 transition-colors disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  PDF
                 </button>
                 <button
                   onClick={handleNewInvoice}
