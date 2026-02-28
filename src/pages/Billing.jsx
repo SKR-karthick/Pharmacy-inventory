@@ -44,8 +44,8 @@ function BillingToast({ message, type, onClose }) {
 }
 
 export default function Billing() {
-  const { medicines } = useMedicines()
-  const medicinesList = medicines.map(m => ({ id: m.id, name: m.name, barcode: m.barcode, price: m.sellingPrice, stock: m.quantity, category: m.category }))
+  const { medicines, deductStock } = useMedicines()
+  const medicinesList = medicines.map(m => ({ id: m.id, name: m.name, barcode: m.barcode, price: m.sellingPricePerUnit || m.sellingPrice, stock: m.totalStockUnits || m.quantity, category: m.category, sellingUnit: m.sellingUnit || 'Tablet', unitsPerPack: m.unitsPerPack || 10, purchasePrice: m.purchasePrice }))
 
   // POS search state
   const [searchInput, setSearchInput] = useState('')
@@ -103,6 +103,14 @@ export default function Billing() {
     }
 
     const existingItem = cartItems.find(item => item.id === medicine.id)
+    const currentQty = existingItem ? existingItem.qty : 0
+
+    // Stock validation
+    if (currentQty + 1 > medicine.stock) {
+      showToast(`${medicine.name} — Insufficient stock! Only ${medicine.stock} ${medicine.sellingUnit || 'unit'}s available`, 'error')
+      clearAndRefocus()
+      return
+    }
 
     if (existingItem) {
       setCartItems(cartItems.map(item =>
@@ -117,7 +125,9 @@ export default function Billing() {
         name: medicine.name,
         qty: 1,
         price: medicine.price,
-        total: medicine.price
+        total: medicine.price,
+        sellingUnit: medicine.sellingUnit || 'Tablet',
+        purchasePrice: medicine.purchasePrice || 0,
       }])
       showToast(`${medicine.name} — Added to cart ✓`, 'success')
     }
@@ -325,6 +335,11 @@ export default function Billing() {
 
   const handleSaveInvoice = () => {
     if (!canSave) return
+
+    // Deduct stock for each cart item
+    cartItems.forEach(item => {
+      deductStock(item.id, item.qty)
+    })
 
     // Set invoice status based on payment method
     if (paymentMethod === 'credit') {
@@ -584,8 +599,8 @@ export default function Billing() {
                   key={method.id}
                   onClick={() => { setPaymentMethod(method.id); setAmountReceived('') }}
                   className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${paymentMethod === method.id
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                 >
                   <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -665,8 +680,8 @@ export default function Billing() {
                 {/* Invoice Status Badge */}
                 {invoiceStatus !== 'pending' && (
                   <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide ${invoiceStatus === 'paid' ? 'bg-emerald-500 text-white' :
-                      invoiceStatus === 'unpaid' ? 'bg-rose-500 text-white' :
-                        'bg-amber-500 text-white'
+                    invoiceStatus === 'unpaid' ? 'bg-rose-500 text-white' :
+                      'bg-amber-500 text-white'
                     }`}>
                     {invoiceStatus}
                   </span>
