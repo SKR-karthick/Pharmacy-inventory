@@ -4,7 +4,7 @@ import { useMedicines } from '../context/MedicinesContext'
 const suppliers = ['MedSupply Co.', 'PharmaDist Ltd.', 'HealthCare Plus', 'MediWholesale']
 
 export default function PurchaseEntry() {
-  const { medicines, findByBarcode, addStock } = useMedicines()
+  const { medicines, findByBarcode, addStock, addMedicine } = useMedicines()
 
   const emptyRow = { id: 1, medicineId: null, medicine: '', batchNo: '', strips: '', costPerStrip: '', unitsPerStrip: '10', expiryDate: '', supplierName: '', scanned: false }
 
@@ -136,8 +136,32 @@ export default function PurchaseEntry() {
 
       // Find medicine by ID or name
       let med = entry.medicineId ? medicines.find(m => m.id === entry.medicineId) : findMedicineByName(entry.medicine)
+
       if (med) {
+        // Existing medicine — update stock
         addStock(med.id, strips, costPerStrip, unitsPerStrip)
+        processed++
+      } else {
+        // New medicine — create it with purchase data
+        const totalTablets = strips * unitsPerStrip
+        const costPerUnit = unitsPerStrip > 0 ? Math.round((costPerStrip / unitsPerStrip) * 100) / 100 : 0
+        addMedicine({
+          name: entry.medicine,
+          barcode: '',
+          category: '',
+          batchNo: entry.batchNo || '',
+          expiry: entry.expiryDate || '',
+          purchaseUnit: 'Strip',
+          sellingUnit: 'Tablet',
+          unitsPerPack: unitsPerStrip,
+          costPerPack: costPerStrip,
+          sellingPricePerUnit: costPerUnit, // default selling = cost, user can edit later
+          totalStockUnits: totalTablets,
+          quantity: strips,
+          purchasePrice: costPerUnit,
+          sellingPrice: costPerUnit,
+          supplier: entry.supplierName || supplier || '',
+        })
         processed++
       }
     })
