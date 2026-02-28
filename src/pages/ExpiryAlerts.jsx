@@ -1,17 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const initialExpiryData = [
-    { id: 1, name: 'Metformin 500mg', batch: 'BTH-2026-005', category: 'Tablet', expiry: '2026-03-15', stock: 12, supplier: 'MedSupply Co.', purchasePrice: 10, sellingPrice: 15 },
-    { id: 2, name: 'Insulin Glargine', batch: 'BTH-2026-011', category: 'Injection', expiry: '2026-03-25', stock: 25, supplier: 'PharmaDist Ltd.', purchasePrice: 450, sellingPrice: 580 },
-    { id: 3, name: 'Amoxicillin 250mg', batch: 'BTH-2026-002', category: 'Capsule', expiry: '2026-04-20', stock: 8, supplier: 'PharmaDist Ltd.', purchasePrice: 32, sellingPrice: 45 },
-    { id: 4, name: 'Cough Syrup', batch: 'BTH-2026-015', category: 'Syrup', expiry: '2026-04-28', stock: 30, supplier: 'HealthCare Plus', purchasePrice: 55, sellingPrice: 75 },
-    { id: 5, name: 'Ibuprofen 400mg', batch: 'BTH-2026-007', category: 'Tablet', expiry: '2026-05-05', stock: 5, supplier: 'HealthCare Plus', purchasePrice: 6, sellingPrice: 10 },
-    { id: 6, name: 'Betadine Ointment', batch: 'BTH-2026-019', category: 'Ointment', expiry: '2026-05-12', stock: 18, supplier: 'MediWholesale', purchasePrice: 40, sellingPrice: 60 },
-    { id: 7, name: 'Azithromycin 500mg', batch: 'BTH-2026-006', category: 'Tablet', expiry: '2026-05-18', stock: 75, supplier: 'PharmaDist Ltd.', purchasePrice: 60, sellingPrice: 85 },
-    { id: 8, name: 'Pantoprazole 40mg', batch: 'BTH-2026-020', category: 'Tablet', expiry: '2026-06-10', stock: 120, supplier: 'MedSupply Co.', purchasePrice: 25, sellingPrice: 35 },
-    { id: 9, name: 'Cetirizine Drops', batch: 'BTH-2026-022', category: 'Drops', expiry: '2026-06-25', stock: 40, supplier: 'HealthCare Plus', purchasePrice: 30, sellingPrice: 48 },
-    { id: 10, name: 'Dolo 650mg', batch: 'BTH-2026-025', category: 'Tablet', expiry: '2026-07-30', stock: 200, supplier: 'MedSupply Co.', purchasePrice: 5, sellingPrice: 8 },
-]
+import { useMedicines } from '../context/MedicinesContext'
 
 const filters = [
     { label: 'Critical (30 days)', days: 30, color: 'rose' },
@@ -21,6 +9,7 @@ const filters = [
 ]
 
 function getDaysUntilExpiry(expiryDate) {
+    if (!expiryDate) return 999
     const today = new Date()
     const expiry = new Date(expiryDate)
     return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24))
@@ -59,7 +48,30 @@ function Toast({ message, type, onClose }) {
 }
 
 export default function ExpiryAlerts() {
-    const [expiryData, setExpiryData] = useState(initialExpiryData)
+    const { medicines } = useMedicines()
+
+    // Build expiry data from live medicines context
+    const liveExpiryData = medicines.map(m => ({
+        id: m.id,
+        name: m.name,
+        batch: m.batchNo,
+        category: m.category || 'Tablet',
+        expiry: m.expiry,
+        stock: m.totalStockUnits ?? (m.quantity * (m.unitsPerPack || 10)),
+        supplier: m.supplier,
+        purchasePrice: m.purchasePrice,
+        sellingPrice: m.sellingPricePerUnit || m.sellingPrice,
+    })).filter(m => {
+        const days = getDaysUntilExpiry(m.expiry)
+        return days > 0 && days <= 365
+    })
+
+    const [expiryData, setExpiryData] = useState(liveExpiryData)
+
+    // Sync expiryData when medicines context changes
+    useEffect(() => {
+        setExpiryData(liveExpiryData)
+    }, [medicines])
     const [activeFilter, setActiveFilter] = useState(90)
     const [searchTerm, setSearchTerm] = useState('')
     const [stockAdjustmentsLog, setStockAdjustmentsLog] = useState([])
@@ -144,7 +156,7 @@ export default function ExpiryAlerts() {
     }
 
     // Computed data
-    const medicines = expiryData
+    const filteredMedicines = expiryData
         .map(m => ({ ...m, daysLeft: getDaysUntilExpiry(m.expiry) }))
         .filter(m => m.daysLeft <= activeFilter && m.daysLeft > 0)
         .filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.batch.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -153,7 +165,7 @@ export default function ExpiryAlerts() {
     const criticalCount = expiryData.filter(m => getDaysUntilExpiry(m.expiry) <= 30 && getDaysUntilExpiry(m.expiry) > 0).length
     const warningCount = expiryData.filter(m => { const d = getDaysUntilExpiry(m.expiry); return d > 30 && d <= 60 }).length
     const upcomingCount = expiryData.filter(m => { const d = getDaysUntilExpiry(m.expiry); return d > 60 && d <= 90 }).length
-    const totalAtRiskValue = medicines.reduce((sum, m) => sum + (m.stock * m.sellingPrice), 0)
+    const totalAtRiskValue = filteredMedicines.reduce((sum, m) => sum + (m.stock * m.sellingPrice), 0)
 
     return (
         <div className="space-y-6 max-w-7xl">
@@ -375,7 +387,7 @@ export default function ExpiryAlerts() {
             </div>
 
             {/* Medicine Cards */}
-            {medicines.length === 0 ? (
+            {filteredMedicines.length === 0 ? (
                 <div className="bg-white rounded-xl border border-slate-200/60 px-6 py-16 text-center">
                     <svg className="w-12 h-12 text-emerald-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -384,7 +396,7 @@ export default function ExpiryAlerts() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {medicines.map(med => (
+                    {filteredMedicines.map(med => (
                         <div key={med.id} className={`bg-white rounded-xl border p-5 transition-all hover:shadow-md ${med.daysLeft <= 30 ? 'border-rose-200 bg-rose-50/20' :
                             med.daysLeft <= 60 ? 'border-amber-200 bg-amber-50/20' :
                                 'border-slate-200/60'
